@@ -1,43 +1,46 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Homepage E2E Tests', () => {
-    test('page loads and displays ShopSmart title', async ({ page }) => {
+    test('page loads and displays logo and hero title', async ({ page }) => {
         await page.goto('/');
 
-        // Verify the main title is visible
-        await expect(page.locator('h1')).toContainText('ShopSmart');
+        // Verify the main logo is visible
+        await expect(page.locator('.logo')).toContainText('SHOPSMART');
+
+        // Verify the hero title is visible
+        await expect(page.locator('.hero-title')).toContainText('Unleash Your Style');
     });
 
-    test('Backend Status card is visible', async ({ page }) => {
+    test('Latest Arrivals section is visible', async ({ page }) => {
         await page.goto('/');
 
-        // The "Backend Status" heading should be present
-        await expect(page.locator('h2')).toContainText('Backend Status');
+        // The "Latest Arrivals" heading should be present
+        await expect(page.locator('h2.section-title')).toContainText('Latest Arrivals');
     });
 
-    test('displays loading state then resolves', async ({ page }) => {
+    test('shows loading state then resolves into products grid', async ({ page }) => {
         await page.goto('/');
 
         // Either we catch the loading text or it already resolved
-        const card = page.locator('.card');
-        await expect(card).toBeVisible();
+        const productsSection = page.locator('.products-section');
+        await expect(productsSection).toBeVisible();
 
-        // Eventually the card should contain status information
-        // (either from real backend or loading text)
-        await expect(card).toContainText(/(Loading|Status)/i);
+        // Eventually the section should contain the loading text or the grid
+        await expect(productsSection).toContainText(/(Loading premium products|Add to Cart)/i);
     });
 
-    test('shows health check data when backend is running', async ({ page }) => {
+    test('shows actual product data when backend is running', async ({ page }) => {
         await page.goto('/');
 
         // Wait for the API response to render (timeout allows backend to respond)
         try {
-            await expect(page.getByText('Status:')).toBeVisible({ timeout: 10000 });
-            await expect(page.getByText('Message:')).toBeVisible();
-            await expect(page.getByText('Timestamp:')).toBeVisible();
+            // Check for a price element
+            await expect(page.locator('.product-price').first()).toBeVisible({ timeout: 10000 });
+            await expect(page.locator('.product-title').first()).toBeVisible();
+            await expect(page.locator('.add-to-cart-btn').first()).toBeVisible();
         } catch {
             // Backend might not be running — test still passes if loading state shows
-            await expect(page.getByText(/Loading backend status/i)).toBeVisible();
+            await expect(page.getByText(/Loading premium products.../i)).toBeVisible();
         }
     });
 });

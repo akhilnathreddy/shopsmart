@@ -9,44 +9,43 @@ describe('App — Integration Tests (API interaction flows)', () => {
         render(<App />);
 
         // 1. Initial loading state
-        expect(screen.getByText(/Loading backend status/i)).toBeInTheDocument();
+        expect(screen.getByText(/Loading premium products.../i)).toBeInTheDocument();
 
         // 2. After MSW responds, data should be displayed
         await waitFor(() => {
-            expect(screen.getByText(/ok/i)).toBeInTheDocument();
+            expect(screen.getByText(/Premium Wireless Headphones/i)).toBeInTheDocument();
         });
 
-        // 3. Verify all three fields are rendered
-        expect(screen.getByText(/ShopSmart Backend is running/i)).toBeInTheDocument();
-        expect(screen.getByText(/2026-01-01T00:00:00.000Z/i)).toBeInTheDocument();
+        // 3. Verify ProductCard content is rendered
+        expect(screen.getByText(/\$299.99/i)).toBeInTheDocument();
+        expect(screen.getByText(/Minimalist Smartwatch/i)).toBeInTheDocument();
     });
 
     it('handles server error (500) without crashing', async () => {
         server.use(
-            http.get('/api/health', () => {
+            http.get('/api/products', () => {
                 return new HttpResponse(null, { status: 500 });
             })
         );
 
         render(<App />);
 
-        // The app should stay in loading state after a 500 error
-        // (the fetch .json() call will reject on non-JSON 500)
         // Give it time to attempt the fetch and fail
         await waitFor(
             () => {
-                expect(screen.getByText(/Loading backend status/i)).toBeInTheDocument();
+                expect(screen.queryByText(/Loading premium products.../i)).not.toBeInTheDocument();
             },
             { timeout: 2000 }
         );
 
-        // Ensure no crash — title still visible
-        expect(screen.getByText(/ShopSmart/i)).toBeInTheDocument();
+        // Ensure no crash — Navbar and Hero title are still visible
+        expect(screen.getByText(/Unleash Your Style/i)).toBeInTheDocument();
+        expect(screen.queryAllByText(/Add to Cart/i).length).toBe(0);
     });
 
     it('handles network failure without crashing', async () => {
         server.use(
-            http.get('/api/health', () => {
+            http.get('/api/products', () => {
                 return HttpResponse.error();
             })
         );
@@ -55,33 +54,31 @@ describe('App — Integration Tests (API interaction flows)', () => {
 
         await waitFor(
             () => {
-                expect(screen.getByText(/Loading backend status/i)).toBeInTheDocument();
+                expect(screen.queryByText(/Loading premium products.../i)).not.toBeInTheDocument();
             },
             { timeout: 2000 }
         );
 
         // App still renders, no uncaught error
-        expect(screen.getByText(/ShopSmart/i)).toBeInTheDocument();
+        expect(screen.getByText(/SHOPSMART/i)).toBeInTheDocument();
     });
 
     it('displays correct data when API returns custom values', async () => {
         server.use(
-            http.get('/api/health', () => {
-                return HttpResponse.json({
-                    status: 'healthy',
-                    message: 'All systems operational',
-                    timestamp: '2026-06-15T12:30:00.000Z',
-                });
+            http.get('/api/products', () => {
+                return HttpResponse.json([
+                    { id: 99, title: 'Limited Edition Sneakers', price: 450.00, image: 'sneakers.jpg', category: 'Footwear' }
+                ]);
             })
         );
 
         render(<App />);
 
         await waitFor(() => {
-            expect(screen.getByText(/healthy/i)).toBeInTheDocument();
+            expect(screen.getByText(/Limited Edition Sneakers/i)).toBeInTheDocument();
         });
 
-        expect(screen.getByText(/All systems operational/i)).toBeInTheDocument();
-        expect(screen.getByText(/2026-06-15T12:30:00.000Z/i)).toBeInTheDocument();
+        expect(screen.getByText(/\$450.00/i)).toBeInTheDocument();
+        expect(screen.getByText(/Footwear/i)).toBeInTheDocument();
     });
 });

@@ -5,41 +5,47 @@ import App from './App';
 import { describe, it, expect } from 'vitest';
 
 describe('App — Unit Tests', () => {
-    it('renders the ShopSmart title', () => {
+    it('renders the ShopSmart logo', () => {
         render(<App />);
-        expect(screen.getByText(/ShopSmart/i)).toBeInTheDocument();
+        expect(screen.getByText(/SHOPSMART/i)).toBeInTheDocument();
+        expect(screen.getByText(/Unleash Your Style/i)).toBeInTheDocument();
     });
 
     it('shows loading state initially', () => {
         render(<App />);
-        expect(screen.getByText(/Loading backend status/i)).toBeInTheDocument();
+        expect(screen.getByText(/Loading premium products.../i)).toBeInTheDocument();
     });
 
-    it('displays backend status after successful API response', async () => {
+    it('displays products after successful API response', async () => {
         render(<App />);
 
-        // Wait for the health data to appear (MSW returns the default mock)
+        // Wait for the products data to appear (MSW returns the dummy data)
         await waitFor(() => {
-            expect(screen.getByText(/ok/i)).toBeInTheDocument();
+            expect(screen.getByText(/Premium Wireless Headphones/i)).toBeInTheDocument();
         });
 
-        expect(screen.getByText(/ShopSmart Backend is running/i)).toBeInTheDocument();
+        // The loading placeholder should be gone and prices visible
+        expect(screen.queryByText(/Loading premium products.../i)).not.toBeInTheDocument();
+        expect(screen.getByText(/\$299.99/i)).toBeInTheDocument();
     });
 
     it('handles API error gracefully', async () => {
-        // Override the handler to return a 500 for this test only
+        // Override the handler to return an error for this test only
         server.use(
-            http.get('/api/health', () => {
+            http.get('/api/products', () => {
                 return new HttpResponse(null, { status: 500 });
             })
         );
 
         render(<App />);
 
-        // The component should still render without crashing.
-        // It logs an error and stays in loading state (no data).
+        // Test utility functions will catch this and return empty array.
+        // It should render standard wrapper but without product cards.
         await waitFor(() => {
-            expect(screen.getByText(/Loading backend status/i)).toBeInTheDocument();
+            expect(screen.queryByText(/Loading premium products.../i)).not.toBeInTheDocument();
         });
+
+        const productCards = screen.queryAllByText(/Add to Cart/i);
+        expect(productCards.length).toBe(0);
     });
 });

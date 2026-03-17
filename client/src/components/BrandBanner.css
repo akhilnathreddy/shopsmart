@@ -1,0 +1,40 @@
+.brand-banner {
+    border-top: 1px solid var(--color-border);
+    padding: 32px 0;
+    margin-top: 40px;
+}
+
+.brand-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.brand-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-diamond {
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--color-text-muted);
+    transform: rotate(45deg);
+    opacity: 0.5;
+}
+
+.brand-name {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    letter-spacing: 0.15em;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .brand-container {
+        justify-content: center;
+    }
+}
