@@ -1,4 +1,4 @@
-# #!/bin/bash
+#!/bin/bash
 
 # Configuration
 ENV=$1 #normal assignment
