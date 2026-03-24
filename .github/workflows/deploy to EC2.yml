@@ -1,4 +1,4 @@
-name: Deploy Image.html to EC2 (Ubuntu + Nginx)
+name: Deploy to EC2 (Ubuntu + Nginx)
 
 on:
   push:
