@@ -8,7 +8,7 @@ on:
 
 jobs:
   # ─────────────────────────────────────────────
-  # Client — Unit Tests (+ Lint)
+  # Client — Unit Tests (+ Lint) 
   # ─────────────────────────────────────────────
   client-unit:
     name: Client Unit Tests
