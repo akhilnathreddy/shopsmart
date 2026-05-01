@@ -35,8 +35,16 @@ jobs:
       - name: Run linter
         run: npm run lint
 
-      - name: Run unit tests
-        run: npm run test:unit
+      - name: Run unit tests and generate report
+        run: npx vitest run --exclude 'src/__test__/**' --reporter=default --reporter=junit --outputFile.junit=test-results/unit-junit.xml
+
+      - name: Upload unit test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: client-unit-test-report
+          path: client/test-results/unit-junit.xml
+          retention-days: 14
 
   # ─────────────────────────────────────────────
   # Client — Integration Tests
@@ -63,8 +71,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run integration tests
-        run: npm run test:integration
+      - name: Run integration tests and generate report
+        run: npx vitest run --dir src/__test__ --reporter=default --reporter=junit --outputFile.junit=test-results/integration-junit.xml
+
+      - name: Upload integration test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: client-integration-test-report
+          path: client/test-results/integration-junit.xml
+          retention-days: 14
 
   # ─────────────────────────────────────────────
   # Client — E2E Tests (Playwright)
@@ -99,7 +115,7 @@ jobs:
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: always()
         with:
           name: playwright-report
           path: client/playwright-report/
@@ -135,7 +151,7 @@ jobs:
         run: npm run build
 
   # ─────────────────────────────────────────────
-  # Server CI (unchanged)
+  # Server CI
   # ─────────────────────────────────────────────
   server-ci:
     name: Server CI
@@ -159,11 +175,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install jest-junit reporter
+        run: npm install --save-dev jest-junit
+
       - name: Run linter
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests and generate report
+        run: |
+          npx jest --testPathIgnorePatterns=tests/integration --reporters=default --reporters=jest-junit
+        env:
+          JEST_JUNIT_OUTPUT_DIR: test-results
+          JEST_JUNIT_OUTPUT_NAME: unit-junit.xml
+
+      - name: Upload unit test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-unit-test-report
+          path: server/test-results/unit-junit.xml
+          retention-days: 14
 
   # ─────────────────────────────────────────────
   # Server — Integration Tests (real HTTP)
@@ -191,5 +222,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run integration tests
-        run: npm run test:integration
+      - name: Install jest-junit reporter
+        run: npm install --save-dev jest-junit
+
+      - name: Run integration tests and generate report
+        run: |
+          npx jest tests/integration --reporters=default --reporters=jest-junit --forceExit
+        env:
+          JEST_JUNIT_OUTPUT_DIR: test-results
+          JEST_JUNIT_OUTPUT_NAME: integration-junit.xml
+
+      - name: Upload integration test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-integration-test-report
+          path: server/test-results/integration-junit.xml
+          retention-days: 14
