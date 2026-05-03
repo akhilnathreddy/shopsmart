@@ -35,3 +35,8 @@ resource "aws_s3_bucket_public_access_block" "my_bucket_public_access_block" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
+
+output "bucket_name" {
+  value       = aws_s3_bucket.my_bucket.bucket
+  description = "The name of the created S3 bucket"
+}

@@ -30,7 +30,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -49,3 +49,10 @@ jobs:
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve
+
+      - name: Verify S3 Bucket Creation
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          BUCKET_NAME=$(terraform output -raw bucket_name)
+          echo "Verifying bucket exists: $BUCKET_NAME"
+          aws s3 ls "s3://$BUCKET_NAME"
