@@ -81,6 +81,15 @@ jobs:
         working-directory: terraform
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache Terraform State
+        uses: actions/cache@v4
+        with:
+          path: terraform/terraform.tfstate
+          key: terraform-state-${{ github.sha }}
+          restore-keys: |
+            terraform-state-
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
