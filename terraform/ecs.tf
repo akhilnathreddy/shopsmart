@@ -131,6 +131,17 @@ resource "aws_lb_listener_rule" "api" {
   }
 }
 
+# CloudWatch Log Groups
+resource "aws_cloudwatch_log_group" "client_logs" {
+  name              = "/ecs/shopsmart-client"
+  retention_in_days = 7
+}
+
+resource "aws_cloudwatch_log_group" "server_logs" {
+  name              = "/ecs/shopsmart-server"
+  retention_in_days = 7
+}
+
 # Task Definitions
 resource "aws_ecs_task_definition" "client_task" {
   family                   = "shopsmart-client-task"
@@ -149,6 +160,14 @@ resource "aws_ecs_task_definition" "client_task" {
       containerPort = 8080
       hostPort      = 8080
     }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = aws_cloudwatch_log_group.client_logs.name
+        "awslogs-region"        = var.aws_region
+        "awslogs-stream-prefix" = "ecs"
+      }
+    }
   }])
 }
 
@@ -169,6 +188,14 @@ resource "aws_ecs_task_definition" "server_task" {
       containerPort = 5001
       hostPort      = 5001
     }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = aws_cloudwatch_log_group.server_logs.name
+        "awslogs-region"        = var.aws_region
+        "awslogs-stream-prefix" = "ecs"
+      }
+    }
   }])
 }
 

@@ -179,3 +179,18 @@ jobs:
           service: shopsmart-server-service
           cluster: shopsmart-cluster
           wait-for-service-stability: true
+
+      - name: Fetch ECS Service Events and Logs on Failure
+        if: failure()
+        run: |
+          echo "=== Client ECS Service Events ==="
+          aws ecs describe-services --cluster shopsmart-cluster --services shopsmart-client-service --query 'services[0].events[0:10].message' --output text || true
+          
+          echo "=== Client CloudWatch Logs ==="
+          aws logs filter-log-events --log-group-name "/ecs/shopsmart-client" --limit 50 --query 'events[*].message' --output text || true
+
+          echo "=== Server ECS Service Events ==="
+          aws ecs describe-services --cluster shopsmart-cluster --services shopsmart-server-service --query 'services[0].events[0:10].message' --output text || true
+          
+          echo "=== Server CloudWatch Logs ==="
+          aws logs filter-log-events --log-group-name "/ecs/shopsmart-server" --limit 50 --query 'events[*].message' --output text || true
