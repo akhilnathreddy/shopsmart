@@ -17,25 +17,25 @@ locals {
 
 # ECR Repositories
 resource "aws_ecr_repository" "client_repo" {
-  name                 = "shopsmart-client"
+  name                 = "shopsmart-client-${random_id.bucket_suffix.hex}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
 
 resource "aws_ecr_repository" "server_repo" {
-  name                 = "shopsmart-server"
+  name                 = "shopsmart-server-${random_id.bucket_suffix.hex}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
 
 # ECS Cluster
 resource "aws_ecs_cluster" "shopsmart_cluster" {
-  name = "shopsmart-cluster"
+  name = "shopsmart-cluster-${random_id.bucket_suffix.hex}"
 }
 
 # Security Group
 resource "aws_security_group" "ecs_sg" {
-  name        = "shopsmart-ecs-sg"
+  name        = "shopsmart-ecs-sg-${random_id.bucket_suffix.hex}"
   description = "Allow inbound traffic for ShopSmart ALB and ECS tasks"
   vpc_id      = data.aws_vpc.default.id
 
@@ -73,7 +73,7 @@ resource "aws_security_group" "ecs_sg" {
 
 # Application Load Balancer
 resource "aws_lb" "shopsmart_alb" {
-  name               = "shopsmart-alb"
+  name               = "shopsmart-alb-${random_id.bucket_suffix.hex}"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.ecs_sg.id]
@@ -81,7 +81,7 @@ resource "aws_lb" "shopsmart_alb" {
 }
 
 resource "aws_lb_target_group" "client_tg" {
-  name        = "shopsmart-client-tg"
+  name        = "shopsmart-client-tg-${random_id.bucket_suffix.hex}"
   port        = 8080
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.default.id
@@ -93,7 +93,7 @@ resource "aws_lb_target_group" "client_tg" {
 }
 
 resource "aws_lb_target_group" "server_tg" {
-  name        = "shopsmart-server-tg"
+  name        = "shopsmart-server-tg-${random_id.bucket_suffix.hex}"
   port        = 5001
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.default.id
@@ -133,18 +133,18 @@ resource "aws_lb_listener_rule" "api" {
 
 # CloudWatch Log Groups
 resource "aws_cloudwatch_log_group" "client_logs" {
-  name              = "/ecs/shopsmart-client"
+  name              = "/ecs/shopsmart-client-${random_id.bucket_suffix.hex}"
   retention_in_days = 7
 }
 
 resource "aws_cloudwatch_log_group" "server_logs" {
-  name              = "/ecs/shopsmart-server"
+  name              = "/ecs/shopsmart-server-${random_id.bucket_suffix.hex}"
   retention_in_days = 7
 }
 
 # Task Definitions
 resource "aws_ecs_task_definition" "client_task" {
-  family                   = "shopsmart-client-task"
+  family                   = "shopsmart-client-task-${random_id.bucket_suffix.hex}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
@@ -172,7 +172,7 @@ resource "aws_ecs_task_definition" "client_task" {
 }
 
 resource "aws_ecs_task_definition" "server_task" {
-  family                   = "shopsmart-server-task"
+  family                   = "shopsmart-server-task-${random_id.bucket_suffix.hex}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
@@ -201,7 +201,7 @@ resource "aws_ecs_task_definition" "server_task" {
 
 # ECS Services
 resource "aws_ecs_service" "client_service" {
-  name            = "shopsmart-client-service"
+  name            = "shopsmart-client-service-${random_id.bucket_suffix.hex}"
   cluster         = aws_ecs_cluster.shopsmart_cluster.id
   task_definition = aws_ecs_task_definition.client_task.arn
   desired_count   = 1
@@ -219,14 +219,13 @@ resource "aws_ecs_service" "client_service" {
     container_port   = 8080
   }
   
-  # Ignore changes to desired_count and task_definition so deployments via actions don't get reverted by terraform apply
   lifecycle {
     ignore_changes = [desired_count, task_definition]
   }
 }
 
 resource "aws_ecs_service" "server_service" {
-  name            = "shopsmart-server-service"
+  name            = "shopsmart-server-service-${random_id.bucket_suffix.hex}"
   cluster         = aws_ecs_cluster.shopsmart_cluster.id
   task_definition = aws_ecs_task_definition.server_task.arn
   desired_count   = 1
@@ -252,4 +251,32 @@ resource "aws_ecs_service" "server_service" {
 output "alb_dns_name" {
   value       = aws_lb.shopsmart_alb.dns_name
   description = "The DNS name of the ALB"
+}
+
+output "client_repo_name" {
+  value = aws_ecr_repository.client_repo.name
+}
+
+output "server_repo_name" {
+  value = aws_ecr_repository.server_repo.name
+}
+
+output "client_service_name" {
+  value = aws_ecs_service.client_service.name
+}
+
+output "server_service_name" {
+  value = aws_ecs_service.server_service.name
+}
+
+output "cluster_name" {
+  value = aws_ecs_cluster.shopsmart_cluster.name
+}
+
+output "client_task_family" {
+  value = aws_ecs_task_definition.client_task.family
+}
+
+output "server_task_family" {
+  value = aws_ecs_task_definition.server_task.family
 }

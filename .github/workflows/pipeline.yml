@@ -76,6 +76,14 @@ jobs:
     needs: [test-client, test-server]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      client_repo: ${{ steps.tf-outputs.outputs.client_repo }}
+      server_repo: ${{ steps.tf-outputs.outputs.server_repo }}
+      cluster_name: ${{ steps.tf-outputs.outputs.cluster_name }}
+      client_service: ${{ steps.tf-outputs.outputs.client_service }}
+      server_service: ${{ steps.tf-outputs.outputs.server_service }}
+      client_task_family: ${{ steps.tf-outputs.outputs.client_task_family }}
+      server_task_family: ${{ steps.tf-outputs.outputs.server_task_family }}
     defaults:
       run:
         working-directory: terraform
@@ -105,6 +113,17 @@ jobs:
       - run: terraform plan
       - run: terraform apply -auto-approve
 
+      - name: Get Terraform Outputs
+        id: tf-outputs
+        run: |
+          echo "client_repo=$(terraform output -raw client_repo_name)" >> $GITHUB_OUTPUT
+          echo "server_repo=$(terraform output -raw server_repo_name)" >> $GITHUB_OUTPUT
+          echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
+          echo "client_service=$(terraform output -raw client_service_name)" >> $GITHUB_OUTPUT
+          echo "server_service=$(terraform output -raw server_service_name)" >> $GITHUB_OUTPUT
+          echo "client_task_family=$(terraform output -raw client_task_family)" >> $GITHUB_OUTPUT
+          echo "server_task_family=$(terraform output -raw server_task_family)" >> $GITHUB_OUTPUT
+
   # ==========================================
   # PHASE 3: Build, Push & Deploy to ECS
   # ==========================================
@@ -131,7 +150,7 @@ jobs:
         id: build-client
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: shopsmart-client
+          ECR_REPOSITORY: ${{ needs.terraform.outputs.client_repo }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f client/Dockerfile client/
@@ -142,7 +161,7 @@ jobs:
         id: build-server
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: shopsmart-server
+          ECR_REPOSITORY: ${{ needs.terraform.outputs.server_repo }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f server/Dockerfile server/
@@ -151,7 +170,7 @@ jobs:
 
       - name: Download client task definition
         run: |
-          aws ecs describe-task-definition --task-definition shopsmart-client-task --query taskDefinition > client-task-def.json
+          aws ecs describe-task-definition --task-definition ${{ needs.terraform.outputs.client_task_family }} --query taskDefinition > client-task-def.json
 
       - name: Fill in the new image ID in the client task definition
         id: task-def-client
@@ -165,13 +184,13 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def-client.outputs.task-definition }}
-          service: shopsmart-client-service
-          cluster: shopsmart-cluster
+          service: ${{ needs.terraform.outputs.client_service }}
+          cluster: ${{ needs.terraform.outputs.cluster_name }}
           wait-for-service-stability: true
 
       - name: Download server task definition
         run: |
-          aws ecs describe-task-definition --task-definition shopsmart-server-task --query taskDefinition > server-task-def.json
+          aws ecs describe-task-definition --task-definition ${{ needs.terraform.outputs.server_task_family }} --query taskDefinition > server-task-def.json
 
       - name: Fill in the new image ID in the server task definition
         id: task-def-server
@@ -185,21 +204,21 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def-server.outputs.task-definition }}
-          service: shopsmart-server-service
-          cluster: shopsmart-cluster
+          service: ${{ needs.terraform.outputs.server_service }}
+          cluster: ${{ needs.terraform.outputs.cluster_name }}
           wait-for-service-stability: true
 
       - name: Fetch ECS Service Events and Logs on Failure
         if: failure()
         run: |
           echo "=== Client ECS Service Events ==="
-          aws ecs describe-services --cluster shopsmart-cluster --services shopsmart-client-service --query 'services[0].events[0:10].message' --output text || true
+          aws ecs describe-services --cluster ${{ needs.terraform.outputs.cluster_name }} --services ${{ needs.terraform.outputs.client_service }} --query 'services[0].events[0:10].message' --output text || true
           
           echo "=== Client CloudWatch Logs ==="
-          aws logs filter-log-events --log-group-name "/ecs/shopsmart-client" --limit 50 --query 'events[*].message' --output text || true
+          aws logs filter-log-events --log-group-name "/ecs/${{ needs.terraform.outputs.client_repo }}" --limit 50 --query 'events[*].message' --output text || true
 
           echo "=== Server ECS Service Events ==="
-          aws ecs describe-services --cluster shopsmart-cluster --services shopsmart-server-service --query 'services[0].events[0:10].message' --output text || true
+          aws ecs describe-services --cluster ${{ needs.terraform.outputs.cluster_name }} --services ${{ needs.terraform.outputs.server_service }} --query 'services[0].events[0:10].message' --output text || true
           
           echo "=== Server CloudWatch Logs ==="
-          aws logs filter-log-events --log-group-name "/ecs/shopsmart-server" --limit 50 --query 'events[*].message' --output text || true
+          aws logs filter-log-events --log-group-name "/ecs/${{ needs.terraform.outputs.server_repo }}" --limit 50 --query 'events[*].message' --output text || true
